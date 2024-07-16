@@ -13,12 +13,19 @@ type Client struct {
 	client *http.Client
 }
 
-func NewClient() *Client {
-	return &Client{
-		client: &http.Client{
-			Timeout: time.Second * 10,
-		},
+func NewClient(url string) (*Client, error) {
+	client := http.Client{
+		Timeout: time.Second * 10,
 	}
+
+	_, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		client: &client,
+	}, nil
 }
 
 func (c *Client) Get(url string) ([]byte, error) {

@@ -38,7 +38,7 @@ type ErrorMessage struct {
 	Data string
 }
 
-func NewModel(width, height int, serverEndpoint string) Model {
+func NewModel(width, height int, httpClient *http_client.Client) Model {
 	m := LoginModel{
 		inputs: make([]textinput.Model, 2),
 	}
@@ -66,12 +66,11 @@ func NewModel(width, height int, serverEndpoint string) Model {
 	}
 
 	return Model{
-		Login:          m,
-		Width:          width,
-		Height:         height,
-		UserInfo:       nil,
-		ServerEndpoint: serverEndpoint,
-		HttpClient:     http_client.NewClient(),
+		Login:      m,
+		Width:      width,
+		Height:     height,
+		UserInfo:   nil,
+		HttpClient: httpClient,
 	}
 }
 
