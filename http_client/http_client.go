@@ -30,7 +30,6 @@ func (c *Client) Post(url string, body []byte) ([]byte, error) {
 }
 
 func (c *Client) doRequest(method, url string, body []byte) ([]byte, error) {
-	// MODIFY THIS WHEN YOU NEED TO PROPAGATE CTX OUT OF SCOPE
 	ctx := context.Background()
 
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
