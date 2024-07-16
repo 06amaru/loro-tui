@@ -3,14 +3,17 @@ package http_client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"loro-tui/domain"
 	"net/http"
 	"time"
 )
 
 type Client struct {
 	client *http.Client
+	url    string
 }
 
 func NewClient(url string) (*Client, error) {
@@ -18,30 +21,50 @@ func NewClient(url string) (*Client, error) {
 		Timeout: time.Second * 10,
 	}
 
-	_, err := client.Get(url)
+	response, err := client.Get(url + "/health-check")
 	if err != nil {
 		return nil, err
+	}
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf(response.Status)
 	}
 
 	return &Client{
 		client: &client,
+		url:    url,
 	}, nil
 }
 
-func (c *Client) Get(url string) ([]byte, error) {
-	return c.doRequest(http.MethodGet, url, nil)
+func (c *Client) Login(payload RequestLogin) (*domain.UserInfo, error) {
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	response, err := c.doRequest("POST", c.url+"/login", bytes, headers)
+	if err != nil {
+		return nil, err
+	}
+	userInfo := new(domain.UserInfo)
+	err = json.Unmarshal(response, userInfo)
+	if err != nil {
+		return nil, err
+	}
+	return userInfo, nil
 }
 
-func (c *Client) Post(url string, body []byte) ([]byte, error) {
-	return c.doRequest(http.MethodPost, url, body)
-}
-
-func (c *Client) doRequest(method, url string, body []byte) ([]byte, error) {
+func (c *Client) doRequest(method, url string, body []byte, headers map[string]string) ([]byte, error) {
 	ctx := context.Background()
 
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	resp, err := c.client.Do(req)

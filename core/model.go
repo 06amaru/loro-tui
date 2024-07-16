@@ -1,6 +1,7 @@
 package core
 
 import (
+	"loro-tui/domain"
 	"loro-tui/http_client"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -8,12 +9,19 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
+type View int
+
+const (
+	Login View = iota
+	Chat
+)
+
 type ErrMsg struct{ error }
 
 func (e ErrMsg) Error() string { return e.error.Error() }
 
 type Model struct {
-	UserInfo       *UserInfo
+	UserInfo       *domain.UserInfo
 	Login          LoginModel
 	ChatModel      ChatModel
 	Width          int
@@ -21,6 +29,7 @@ type Model struct {
 	HttpClient     *http_client.Client
 	ServerEndpoint string
 	ErrorApp       string
+	Navigator      View
 }
 
 type LoginModel struct {
@@ -28,14 +37,19 @@ type LoginModel struct {
 	inputs     []textinput.Model
 }
 
+func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
+	cmds := make([]tea.Cmd, len(m.inputs))
+
+	// Only text inputs with Focus() set will respond, so it's safe to simply
+	// update all of them here without any further logic.
+	for i := range m.inputs {
+		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
+	}
+
+	return tea.Batch(cmds...)
+}
+
 type ChatModel struct {
-}
-
-type UserInfo struct {
-}
-
-type ErrorMessage struct {
-	Data string
 }
 
 func NewModel(width, height int, httpClient *http_client.Client) Model {
@@ -71,6 +85,7 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 		Height:     height,
 		UserInfo:   nil,
 		HttpClient: httpClient,
+		Navigator:  Login,
 	}
 }
 
