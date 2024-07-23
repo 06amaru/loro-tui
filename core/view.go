@@ -17,8 +17,8 @@ func (m Model) View() string {
 		}
 
 		ui := lipgloss.JoinVertical(lipgloss.Center,
-			m.Login.inputs[0].View(),
-			m.Login.inputs[1].View(),
+			m.Login.inputs[0].View(), // username
+			m.Login.inputs[1].View(), // password
 			button.Render(" Enter "),
 		)
 
@@ -42,7 +42,27 @@ func (m Model) View() string {
 	}
 
 	if m.Navigator == Chat {
-		b.WriteString("Hi " + m.UserInfo.Username)
+		var ui string
+		var messageUI string
+		if m.Chat.isNewChat {
+			m.Chat.Message.Height = m.Height - 2
+			messageUI = lipgloss.JoinVertical(lipgloss.Top,
+				m.Chat.Message.View(),
+				m.Chat.inputs[1].View(), // to username
+				m.Chat.inputs[0].View(), // body message
+			)
+		} else {
+			m.Chat.Message.Height = m.Height - 1
+			messageUI = lipgloss.JoinVertical(lipgloss.Top,
+				m.Chat.Message.View(),
+				m.Chat.inputs[0].View(), // body message
+			)
+		}
+		ui = lipgloss.JoinHorizontal(lipgloss.Center,
+			m.Chat.List.View(),
+			messageUI,
+		)
+		b.WriteString(ui)
 	}
 
 	return b.String()
