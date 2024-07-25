@@ -42,12 +42,12 @@ func (m Model) View() string {
 	}
 
 	if m.Navigator == Chat {
+		m.Chat.Message.SetContent("Hi mom!")
 		var ui string
 		var messageUI string
 		if m.Chat.isNewChat {
-			m.Chat.Message.Height = m.Height - 2
+			m.Chat.Message.Height = m.Height
 			messageUI = lipgloss.JoinVertical(lipgloss.Top,
-				m.Chat.Message.View(),
 				m.Chat.inputs[1].View(), // to username
 				m.Chat.inputs[0].View(), // body message
 			)

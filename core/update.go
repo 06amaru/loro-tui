@@ -67,10 +67,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "ctrl+c", "esc":
+				if m.Chat.isNewChat {
+					m.Chat.isNewChat = false
+					return m, nil
+				}
 				return m, tea.Quit
+			case "ctrl+n":
+				m.Chat.isNewChat = true
+				return m, nil
+			case "tab":
+				if m.Chat.isNewChat {
+					m.Chat.focusIndex++
+					m.Chat.focusIndex = m.Chat.focusIndex % 2
+				}
+
+				cmds := make([]tea.Cmd, len(m.Chat.inputs))
+				for i := range m.Chat.inputs {
+					if i == m.Chat.focusIndex {
+						cmds[i] = m.Chat.inputs[i].Focus()
+						m.Chat.inputs[i].PromptStyle = focusedStyle
+						m.Chat.inputs[i].TextStyle = focusedStyle
+						continue
+					}
+					m.Chat.inputs[i].Blur()
+					m.Chat.inputs[i].PromptStyle = noStyle
+					m.Chat.inputs[i].TextStyle = noStyle
+				}
+
+				return m, tea.Batch(cmds...)
 			}
 		}
-		return m, nil
+		cmd := m.Chat.updateInputs(msg)
+
+		return m, cmd
 	}
 
 	return m, nil

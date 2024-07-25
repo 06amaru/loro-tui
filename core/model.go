@@ -51,10 +51,11 @@ func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
 }
 
 type ChatModel struct {
-	List      viewport.Model
-	Message   viewport.Model
-	inputs    []textinput.Model
-	isNewChat bool
+	List       viewport.Model
+	Message    viewport.Model
+	focusIndex int
+	inputs     []textinput.Model
+	isNewChat  bool
 }
 
 func (m ChatModel) updateInputs(msg tea.Msg) tea.Cmd {
