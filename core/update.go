@@ -1,8 +1,10 @@
 package core
 
 import (
+	"loro-tui/core/widgets"
 	"loro-tui/http_client"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -50,6 +52,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.UserInfo = user
 					m.Navigator = Chat
+					//TODO: LOAD CHATS
+					items := []list.Item{
+						widgets.NewItem("godwana", 1),
+						widgets.NewItem("morodo", 2),
+						widgets.NewItem("eminem", 3),
+						widgets.NewItem("50cent", 4),
+						widgets.NewItem("snoopdog", 5),
+					}
+					m.Chat.List.SetItems(items)
+					//m.Chat.List.SetSize(m.Width, m.Height)
 					return m, nil
 				}
 			}
@@ -66,41 +78,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case tea.KeyMsg:
 			switch msg.String() {
+			case "tab":
+				m.Chat.focusIndex++
+				m.Chat.focusIndex = m.Chat.focusIndex % 3
+				return m, nil
 			case "ctrl+c", "esc":
-				if m.Chat.isNewChat {
-					m.Chat.isNewChat = false
-					return m, nil
-				}
 				return m, tea.Quit
 			case "ctrl+n":
-				m.Chat.isNewChat = true
+				m.Navigator = NewChat
 				return m, nil
-			case "tab":
-				if m.Chat.isNewChat {
-					m.Chat.focusIndex++
-					m.Chat.focusIndex = m.Chat.focusIndex % 2
-				}
-
-				cmds := make([]tea.Cmd, len(m.Chat.inputs))
-				for i := range m.Chat.inputs {
-					if i == m.Chat.focusIndex {
-						cmds[i] = m.Chat.inputs[i].Focus()
-						m.Chat.inputs[i].PromptStyle = focusedStyle
-						m.Chat.inputs[i].TextStyle = focusedStyle
-						continue
-					}
-					m.Chat.inputs[i].Blur()
-					m.Chat.inputs[i].PromptStyle = noStyle
-					m.Chat.inputs[i].TextStyle = noStyle
-				}
-
-				return m, tea.Batch(cmds...)
 			}
+
+			var cmd tea.Cmd
+			if m.Chat.focusIndex == 0 {
+				m.Chat.Input, cmd = m.Chat.Input.Update(msg)
+			}
+			if m.Chat.focusIndex == 1 {
+				m.Chat.List, cmd = m.Chat.List.Update(msg)
+			}
+
+			return m, cmd
 		}
-		cmd := m.Chat.updateInputs(msg)
-
-		return m, cmd
 	}
-
 	return m, nil
 }

@@ -1,9 +1,12 @@
 package core
 
 import (
+	"loro-tui/core/widgets"
 	"loro-tui/domain"
 	"loro-tui/http_client"
+	"loro-tui/web_socket"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +18,7 @@ type View int
 const (
 	Login View = iota
 	Chat
+	NewChat
 )
 
 type ErrMsg struct{ error }
@@ -22,15 +26,15 @@ type ErrMsg struct{ error }
 func (e ErrMsg) Error() string { return e.error.Error() }
 
 type Model struct {
-	UserInfo       *domain.UserInfo
-	Login          LoginModel
-	Chat           ChatModel
-	Width          int
-	Height         int
-	HttpClient     *http_client.Client
-	ServerEndpoint string
-	ErrorApp       string
-	Navigator      View
+	UserInfo   *domain.UserInfo
+	Login      LoginModel
+	Chat       ChatModel
+	Width      int
+	Height     int
+	HttpClient *http_client.Client
+	ErrorApp   string
+	Navigator  View
+	Socket     *web_socket.WSocketClient
 }
 
 type LoginModel struct {
@@ -51,21 +55,11 @@ func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
 }
 
 type ChatModel struct {
-	List       viewport.Model
-	Message    viewport.Model
-	focusIndex int
-	inputs     []textinput.Model
-	isNewChat  bool
-}
-
-func (m ChatModel) updateInputs(msg tea.Msg) tea.Cmd {
-	cmds := make([]tea.Cmd, len(m.inputs))
-
-	for i := range m.inputs {
-		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
-	}
-
-	return tea.Batch(cmds...)
+	List        list.Model
+	Message     viewport.Model
+	focusIndex  int
+	Input       textinput.Model
+	CurrentChat string
 }
 
 func NewModel(width, height int, httpClient *http_client.Client) Model {
@@ -95,16 +89,11 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 		loginM.inputs[i] = t
 	}
 
+	chatList := widgets.NewList(nil, width, height)
 	chatM := ChatModel{
-		inputs:  make([]textinput.Model, 2),
-		List:    viewport.New(width/3, height),
-		Message: viewport.New(2*width/3, height),
+		List:    chatList,
+		Message: viewport.New(width-(width/3), height),
 	}
-
-	chatM.List.Style = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#874BFD")).
-		MarginTop(2)
 
 	chatM.Message.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
@@ -112,22 +101,15 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 		MarginRight(4).
 		MarginTop(2)
 
-	for i := range chatM.inputs {
-		t = textinput.New()
-		t.Cursor.Style = focusedStyle
-		t.CharLimit = 32
-		t.Width = 33
-		switch i {
-		case 0:
-			t.Placeholder = "Write your message"
-			t.Focus()
-		case 1:
-			t.Placeholder = "Here the target username"
-		}
-		t.PromptStyle = focusedStyle
-		t.TextStyle = focusedStyle
-		chatM.inputs[i] = t
-	}
+	t = textinput.New()
+	t.Cursor.Style = focusedStyle
+	t.CharLimit = 32
+	t.Width = 33
+	t.Placeholder = "Write your message"
+	t.Focus()
+	t.PromptStyle = focusedStyle
+	t.TextStyle = focusedStyle
+	chatM.Input = t
 
 	return Model{
 		Login:      loginM,

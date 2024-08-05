@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -42,25 +43,18 @@ func (m Model) View() string {
 	}
 
 	if m.Navigator == Chat {
-		m.Chat.Message.SetContent("Hi mom!")
+		m.Chat.Message.SetContent(fmt.Sprintf("index %d", m.Chat.focusIndex))
+
 		var ui string
-		var messageUI string
-		if m.Chat.isNewChat {
-			m.Chat.Message.Height = m.Height
-			messageUI = lipgloss.JoinVertical(lipgloss.Top,
-				m.Chat.inputs[1].View(), // to username
-				m.Chat.inputs[0].View(), // body message
-			)
-		} else {
-			m.Chat.Message.Height = m.Height - 1
-			messageUI = lipgloss.JoinVertical(lipgloss.Top,
-				m.Chat.Message.View(),
-				m.Chat.inputs[0].View(), // body message
-			)
-		}
+		m.Chat.Message.Height = m.Height - 1
+
 		ui = lipgloss.JoinHorizontal(lipgloss.Center,
+			m.Chat.Message.View(),
 			m.Chat.List.View(),
-			messageUI,
+		)
+		ui = lipgloss.JoinVertical(lipgloss.Top,
+			ui,
+			m.Chat.Input.View(), // body message
 		)
 		b.WriteString(ui)
 	}

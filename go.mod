@@ -2,7 +2,12 @@ module loro-tui
 
 go 1.22.4
 
-require github.com/charmbracelet/bubbles v0.18.0
+require (
+	github.com/charmbracelet/bubbles v0.18.0
+	github.com/gorilla/websocket v1.5.3
+)
+
+require github.com/sahilm/fuzzy v0.1.1-0.20230530133925-c48e322e2a8f // indirect
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -27,5 +32,5 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/term v0.22.0
-	golang.org/x/text v0.3.8 // indirect
+	golang.org/x/text v0.16.0 // indirect
 )
