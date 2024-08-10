@@ -1,14 +1,22 @@
 package core
 
 import (
+	"fmt"
 	"loro-tui/core/widgets"
 	"loro-tui/http_client"
+	"loro-tui/web_socket"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	defer func() {
+		if m.Socket != nil {
+			m.Socket.Close()
+		}
+	}()
+
 	if m.Navigator == Login {
 		switch msg := msg.(type) {
 		case error:
@@ -54,11 +62,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.Navigator = Chat
 					//TODO: LOAD CHATS
 					items := []list.Item{
-						widgets.NewItem("godwana", 1),
-						widgets.NewItem("morodo", 2),
-						widgets.NewItem("eminem", 3),
-						widgets.NewItem("50cent", 4),
-						widgets.NewItem("snoopdog", 5),
+						widgets.NewItem("godwana", 121),
+						widgets.NewItem("morodo", 242),
+						widgets.NewItem("eminem", 364),
+						widgets.NewItem("50cent", 487),
+						widgets.NewItem("snoopdog", 598),
 					}
 					m.Chat.List.SetItems(items)
 					//m.Chat.List.SetSize(m.Width, m.Height)
@@ -81,6 +89,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "tab":
 				m.Chat.focusIndex++
 				m.Chat.focusIndex = m.Chat.focusIndex % 3
+				if m.Chat.focusIndex == 0 {
+					m.Chat.Input.TextStyle = focusedStyle
+					m.Chat.Input.PromptStyle = focusedStyle
+					m.Chat.Input.Cursor.Style = focusedStyle
+				} else {
+					m.Chat.Input.TextStyle = noStyle
+					m.Chat.Input.PromptStyle = noStyle
+					m.Chat.Input.Cursor.Style = noStyle
+				}
+
+				if m.Chat.focusIndex == 1 {
+					delegateList := widgets.NewDelegateList(true)
+					m.Chat.List.SetDelegate(delegateList)
+				} else {
+					delegateList := widgets.NewDelegateList(false)
+					m.Chat.List.SetDelegate(delegateList)
+				}
 				return m, nil
 			case "ctrl+c", "esc":
 				return m, tea.Quit
@@ -92,11 +117,78 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			if m.Chat.focusIndex == 0 {
 				m.Chat.Input, cmd = m.Chat.Input.Update(msg)
+				return m, cmd
 			}
 			if m.Chat.focusIndex == 1 {
 				m.Chat.List, cmd = m.Chat.List.Update(msg)
+				return m, cmd
 			}
 
+			return m, nil
+		case SocketMsg:
+
+		}
+	}
+	if m.Navigator == NewChat {
+		switch msg := msg.(type) {
+		case error:
+			m.ErrorApp = msg.Error()
+			return m, nil
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "ctrl+c", "esc":
+				m.ErrorApp = ""
+				m.Navigator = Chat
+				return m, nil
+			case "tab":
+				m.NewChat.focusIndex++
+				m.NewChat.focusIndex = m.NewChat.focusIndex % 2
+
+				var cmd tea.Cmd
+				if m.NewChat.focusIndex == 0 {
+					cmd = m.NewChat.Input.Focus()
+					m.NewChat.Input.PromptStyle = focusedStyle
+					m.NewChat.Input.TextStyle = focusedStyle
+				} else {
+					m.NewChat.Input.Blur()
+					m.NewChat.Input.PromptStyle = noStyle
+					m.NewChat.Input.TextStyle = noStyle
+				}
+
+				return m, cmd
+			case "enter":
+				if m.NewChat.focusIndex == 1 {
+					username := m.NewChat.Input.Value()
+					url := fmt.Sprintf("ws://localhost:8081/socket/create-chat?to=%s", username)
+					newSocket, err := web_socket.NewWSocketClient(url, m.UserInfo.Token)
+					if err != nil {
+						return m, func() tea.Msg { return err }
+					}
+					// close previous connection
+					if m.Socket != nil {
+						m.Socket.Close()
+					}
+					m.Socket = newSocket
+					go func(model *Model) {
+						defer func() {
+							if m.Socket != nil {
+								m.Socket.Close()
+							}
+						}()
+
+						for {
+							bytes, err := m.Socket.Listen()
+							if err != nil {
+								m.Update(func() tea.Msg { return err })
+								break
+							}
+							m.Update(func() tea.Msg { return SocketMsg{bytes} })
+						}
+					}(&m)
+				}
+			}
+			var cmd tea.Cmd
+			m.NewChat.Input, cmd = m.NewChat.Input.Update(msg)
 			return m, cmd
 		}
 	}

@@ -1,6 +1,9 @@
 package widgets
 
-import "github.com/charmbracelet/bubbles/list"
+import (
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/lipgloss"
+)
 
 type Item struct {
 	Sender string
@@ -27,10 +30,16 @@ func NewItem(sender string, chatID int) Item {
 }
 
 func NewList(items []list.Item, width, height int) list.Model {
+	delegateList := NewDelegateList(false)
+	chatList := list.New(items, delegateList, width, height)
+	return chatList
+}
+
+func NewDelegateList(focus bool) list.ItemDelegate {
 	delegateList := list.NewDefaultDelegate()
 	delegateList.ShowDescription = false
-
-	chatList := list.New(items, delegateList, width, height)
-
-	return chatList
+	if !focus {
+		delegateList.Styles.SelectedTitle = lipgloss.NewStyle()
+	}
+	return delegateList
 }

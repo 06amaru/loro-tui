@@ -35,6 +35,10 @@ func NewClient(url string) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) GetMessagesFrom(chatID int) {
+
+}
+
 func (c *Client) Login(payload RequestLogin) (*domain.UserInfo, error) {
 	headers := map[string]string{
 		"Content-Type": "application/json",

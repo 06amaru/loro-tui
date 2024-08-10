@@ -25,10 +25,15 @@ type ErrMsg struct{ error }
 
 func (e ErrMsg) Error() string { return e.error.Error() }
 
+type SocketMsg struct {
+	Data []byte
+}
+
 type Model struct {
 	UserInfo   *domain.UserInfo
 	Login      LoginModel
 	Chat       ChatModel
+	NewChat    NewChatModel
 	Width      int
 	Height     int
 	HttpClient *http_client.Client
@@ -37,9 +42,21 @@ type Model struct {
 	Socket     *web_socket.WSocketClient
 }
 
+type NewChatModel struct {
+	focusIndex int
+	Input      textinput.Model
+}
+
 type LoginModel struct {
 	focusIndex int
 	inputs     []textinput.Model
+}
+
+type ChatModel struct {
+	List       list.Model
+	Message    viewport.Model
+	focusIndex int
+	Input      textinput.Model
 }
 
 func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
@@ -52,14 +69,6 @@ func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
-}
-
-type ChatModel struct {
-	List        list.Model
-	Message     viewport.Model
-	focusIndex  int
-	Input       textinput.Model
-	CurrentChat string
 }
 
 func NewModel(width, height int, httpClient *http_client.Client) Model {
@@ -97,23 +106,34 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 
 	chatM.Message.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#FFFFFF")).
 		MarginRight(4).
 		MarginTop(2)
 
 	t = textinput.New()
-	t.Cursor.Style = focusedStyle
 	t.CharLimit = 32
 	t.Width = 33
 	t.Placeholder = "Write your message"
-	t.Focus()
-	t.PromptStyle = focusedStyle
 	t.TextStyle = focusedStyle
+	t.PromptStyle = focusedStyle
+	t.Cursor.Style = focusedStyle
+	t.Focus()
 	chatM.Input = t
+
+	newChatM := NewChatModel{}
+	t = textinput.New()
+	t.CharLimit = 32
+	t.Width = 33
+	t.Placeholder = "Here goes the username to chat"
+	t.TextStyle = focusedStyle
+	t.PromptStyle = focusedStyle
+	t.Cursor.Style = focusedStyle
+	t.Focus()
+	newChatM.Input = t
 
 	return Model{
 		Login:      loginM,
 		Chat:       chatM,
+		NewChat:    newChatM,
 		Width:      width,
 		Height:     height,
 		UserInfo:   nil,
