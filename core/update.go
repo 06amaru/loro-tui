@@ -11,11 +11,6 @@ import (
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	defer func() {
-		if m.Socket != nil {
-			m.Socket.Close()
-		}
-	}()
 
 	if m.Navigator == Login {
 		switch msg := msg.(type) {
