@@ -1,8 +1,6 @@
 package core
 
 import (
-	"fmt"
-	"loro-tui/core/widgets"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -68,21 +66,20 @@ func (m Model) View() string {
 	}
 
 	if m.Navigator == Chat {
-		info := fmt.Sprintf("chat should be from %d\n", m.Chat.List.Index())
-		selected := m.Chat.List.SelectedItem().(widgets.Item)
-		info += fmt.Sprintf("chat ID %d", selected.ChatID)
-		m.Chat.Message.SetContent(info)
+		if m.ChatModel.Messages != "" {
+			m.ChatModel.Chat.SetContent(m.ChatModel.Messages)
+		}
 
 		var ui string
-		m.Chat.Message.Height = m.Height - 1
+		m.ChatModel.Chat.Height = m.Height - 1
 
 		ui = lipgloss.JoinHorizontal(lipgloss.Center,
-			m.Chat.Message.View(),
-			m.Chat.List.View(),
+			m.ChatModel.Chat.View(),
+			m.ChatModel.List.View(),
 		)
 		ui = lipgloss.JoinVertical(lipgloss.Top,
 			ui,
-			m.Chat.Input.View(), // body message
+			m.ChatModel.Input.View(), // body message
 		)
 		b.WriteString(ui)
 	}

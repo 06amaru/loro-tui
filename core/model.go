@@ -29,10 +29,12 @@ type SocketMsg struct {
 	Data []byte
 }
 
+type LoadingEvent struct{}
+
 type Model struct {
 	UserInfo   *domain.UserInfo
 	Login      LoginModel
-	Chat       ChatModel
+	ChatModel  ChatModel
 	NewChat    NewChatModel
 	Width      int
 	Height     int
@@ -40,6 +42,7 @@ type Model struct {
 	ErrorApp   string
 	Navigator  View
 	Socket     *web_socket.WSocketClient
+	Program    *tea.Program
 }
 
 type NewChatModel struct {
@@ -54,9 +57,10 @@ type LoginModel struct {
 
 type ChatModel struct {
 	List       list.Model
-	Message    viewport.Model
+	Chat       viewport.Model
 	focusIndex int
 	Input      textinput.Model
+	Messages   string
 }
 
 func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
@@ -71,7 +75,7 @@ func (m LoginModel) updateInputs(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func NewModel(width, height int, httpClient *http_client.Client) Model {
+func NewModel(width, height int, httpClient *http_client.Client) *Model {
 	loginM := LoginModel{
 		inputs: make([]textinput.Model, 2),
 	}
@@ -99,12 +103,14 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 	}
 
 	chatList := widgets.NewList(nil, width, height)
+	chatList.SetShowHelp(false)
+	chatList.SetFilteringEnabled(false)
 	chatM := ChatModel{
-		List:    chatList,
-		Message: viewport.New(width-(width/3), height),
+		List: chatList,
+		Chat: viewport.New(width-(width/3), height),
 	}
 
-	chatM.Message.Style = lipgloss.NewStyle().
+	chatM.Chat.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		MarginRight(4).
 		MarginTop(2)
@@ -130,9 +136,9 @@ func NewModel(width, height int, httpClient *http_client.Client) Model {
 	t.Focus()
 	newChatM.Input = t
 
-	return Model{
+	return &Model{
 		Login:      loginM,
-		Chat:       chatM,
+		ChatModel:  chatM,
 		NewChat:    newChatM,
 		Width:      width,
 		Height:     height,

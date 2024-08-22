@@ -31,7 +31,9 @@ func main() {
 
 	model := core.NewModel(width, height, httpClient)
 
-	if _, err := tea.NewProgram(model, tea.WithAltScreen()).Run(); err != nil {
+	model.Program = tea.NewProgram(model, tea.WithAltScreen())
+
+	if _, err := model.Program.Run(); err != nil {
 		fmt.Printf("could not start program: %s\n", err)
 		os.Exit(1)
 	}

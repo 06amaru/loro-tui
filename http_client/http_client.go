@@ -39,6 +39,24 @@ func (c *Client) GetMessagesFrom(chatID int) {
 
 }
 
+func (c *Client) GetChats(token string) ([]domain.Chat, error) {
+	header := map[string]string{
+		"Cookie": fmt.Sprintf("token=%s", token),
+	}
+
+	response, err := c.doRequest("GET", c.url+"/api/chats", nil, header)
+	if err != nil {
+		return nil, err
+	}
+	chats := new([]domain.Chat)
+	err = json.Unmarshal(response, chats)
+	if err != nil {
+		return nil, err
+	}
+
+	return *chats, nil
+}
+
 func (c *Client) Login(payload RequestLogin) (*domain.UserInfo, error) {
 	headers := map[string]string{
 		"Content-Type": "application/json",

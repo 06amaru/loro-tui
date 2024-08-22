@@ -55,17 +55,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.UserInfo = user
 					m.Navigator = Chat
-					//TODO: LOAD CHATS
-					items := []list.Item{
-						widgets.NewItem("godwana", 121),
-						widgets.NewItem("morodo", 242),
-						widgets.NewItem("eminem", 364),
-						widgets.NewItem("50cent", 487),
-						widgets.NewItem("snoopdog", 598),
-					}
-					m.Chat.List.SetItems(items)
-					//m.Chat.List.SetSize(m.Width, m.Height)
-					return m, nil
+					return m, func() tea.Msg { return LoadingEvent{} }
 				}
 			}
 		}
@@ -76,30 +66,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.Navigator == Chat {
 		switch msg := msg.(type) {
+		case LoadingEvent:
+			chats, err := m.HttpClient.GetChats(m.UserInfo.Token)
+			if err != nil {
+				return m, func() tea.Msg { return err }
+			}
+
+			items := []list.Item{}
+			for _, chat := range chats {
+				items = append(items, widgets.NewItem(chat.Sender, chat.ChatID))
+			}
+
+			m.ChatModel.List.SetItems(items)
+			if len(items) != 0 {
+				defaultChat := m.ChatModel.List.SelectedItem().(widgets.Item)
+				url := fmt.Sprintf("ws://localhost:8081/socket/join?id=%d", defaultChat.ChatID)
+				newSocket, err := web_socket.NewWSocketClient(url, m.UserInfo.Token)
+				if err != nil {
+					return m, func() tea.Msg { return err }
+				}
+				if m.Socket != nil {
+					m.Socket.Close()
+				}
+				m.Socket = newSocket
+
+				go func(model *Model) {
+					for {
+						bytes, err := m.Socket.Listen()
+						if err != nil {
+							m.Program.Send(err)
+							break
+						}
+						m.Program.Send(SocketMsg{bytes})
+					}
+				}(&m)
+
+				return m, nil
+			}
 		case error:
 			m.ErrorApp = msg.Error()
 			return m, nil
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "tab":
-				m.Chat.focusIndex++
-				m.Chat.focusIndex = m.Chat.focusIndex % 3
-				if m.Chat.focusIndex == 0 {
-					m.Chat.Input.TextStyle = focusedStyle
-					m.Chat.Input.PromptStyle = focusedStyle
-					m.Chat.Input.Cursor.Style = focusedStyle
+				m.ChatModel.focusIndex++
+				m.ChatModel.focusIndex = m.ChatModel.focusIndex % 3
+				if m.ChatModel.focusIndex == 0 {
+					m.ChatModel.Input.TextStyle = focusedStyle
+					m.ChatModel.Input.PromptStyle = focusedStyle
+					m.ChatModel.Input.Cursor.Style = focusedStyle
 				} else {
-					m.Chat.Input.TextStyle = noStyle
-					m.Chat.Input.PromptStyle = noStyle
-					m.Chat.Input.Cursor.Style = noStyle
+					m.ChatModel.Input.TextStyle = noStyle
+					m.ChatModel.Input.PromptStyle = noStyle
+					m.ChatModel.Input.Cursor.Style = noStyle
 				}
 
-				if m.Chat.focusIndex == 1 {
+				if m.ChatModel.focusIndex == 1 {
 					delegateList := widgets.NewDelegateList(true)
-					m.Chat.List.SetDelegate(delegateList)
+					m.ChatModel.List.SetDelegate(delegateList)
 				} else {
 					delegateList := widgets.NewDelegateList(false)
-					m.Chat.List.SetDelegate(delegateList)
+					m.ChatModel.List.SetDelegate(delegateList)
 				}
 				return m, nil
 			case "ctrl+c", "esc":
@@ -107,21 +134,59 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+n":
 				m.Navigator = NewChat
 				return m, nil
+			case "enter":
+				if m.ChatModel.focusIndex == 0 && m.Socket != nil {
+					message := m.ChatModel.Input.Value()
+					err := m.Socket.Send(message)
+					if err != nil {
+						return m, func() tea.Msg { return err }
+					}
+					m.ChatModel.Input.SetValue("")
+					return m, nil
+				}
+
+				if m.ChatModel.focusIndex == 1 && len(m.ChatModel.List.Items()) != 0 {
+					defaultChat := m.ChatModel.List.SelectedItem().(widgets.Item)
+					url := fmt.Sprintf("ws://localhost:8081/socket/join?id=%d", defaultChat.ChatID)
+					newSocket, err := web_socket.NewWSocketClient(url, m.UserInfo.Token)
+					if err != nil {
+						return m, func() tea.Msg { return err }
+					}
+					if m.Socket != nil {
+						m.Socket.Close()
+					}
+					m.Socket = newSocket
+
+					go func(model *Model) {
+						for {
+							bytes, err := m.Socket.Listen()
+							if err != nil {
+								m.Program.Send(err)
+								break
+							}
+							m.Program.Send(SocketMsg{bytes})
+						}
+
+					}(&m)
+
+					return m, nil
+				}
 			}
 
 			var cmd tea.Cmd
-			if m.Chat.focusIndex == 0 {
-				m.Chat.Input, cmd = m.Chat.Input.Update(msg)
+			if m.ChatModel.focusIndex == 0 {
+				m.ChatModel.Input, cmd = m.ChatModel.Input.Update(msg)
 				return m, cmd
 			}
-			if m.Chat.focusIndex == 1 {
-				m.Chat.List, cmd = m.Chat.List.Update(msg)
+			if m.ChatModel.focusIndex == 1 {
+				m.ChatModel.List, cmd = m.ChatModel.List.Update(msg)
 				return m, cmd
 			}
 
 			return m, nil
 		case SocketMsg:
-
+			message := string(msg.Data)
+			m.ChatModel.Messages += fmt.Sprintf("%s\n", message)
 		}
 	}
 	if m.Navigator == NewChat {
@@ -155,31 +220,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.NewChat.focusIndex == 1 {
 					username := m.NewChat.Input.Value()
 					url := fmt.Sprintf("ws://localhost:8081/socket/create-chat?to=%s", username)
-					newSocket, err := web_socket.NewWSocketClient(url, m.UserInfo.Token)
+					_, err := web_socket.NewWSocketClient(url, m.UserInfo.Token)
 					if err != nil {
 						return m, func() tea.Msg { return err }
 					}
-					// close previous connection
-					if m.Socket != nil {
-						m.Socket.Close()
-					}
-					m.Socket = newSocket
-					go func(model *Model) {
-						defer func() {
-							if m.Socket != nil {
-								m.Socket.Close()
-							}
-						}()
 
-						for {
-							bytes, err := m.Socket.Listen()
-							if err != nil {
-								m.Update(func() tea.Msg { return err })
-								break
-							}
-							m.Update(func() tea.Msg { return SocketMsg{bytes} })
-						}
-					}(&m)
+					m.Navigator = Chat
+					return m, func() tea.Msg { return LoadingEvent{} }
 				}
 			}
 			var cmd tea.Cmd
