@@ -1,6 +1,6 @@
-package http_client
+package models
 
-type RequestLogin struct {
+type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }

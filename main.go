@@ -3,12 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"loro-tui/core"
-	"loro-tui/http_client"
+	"loro-tui/internal"
 	"os"
-
-	tea "github.com/charmbracelet/bubbletea"
-	"golang.org/x/term"
 )
 
 func main() {
@@ -21,20 +17,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	httpClient, err := http_client.NewClient(*url)
+	loro, err := internal.NewLoro(*url)
 	if err != nil {
 		fmt.Println("Server: " + err.Error())
 		os.Exit(1)
 	}
 
-	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
-
-	model := core.NewModel(width, height, httpClient)
-
-	model.Program = tea.NewProgram(model, tea.WithAltScreen())
-
-	if _, err := model.Program.Run(); err != nil {
-		fmt.Printf("could not start program: %s\n", err)
-		os.Exit(1)
+	if err := loro.SetRoot(internal.Pages, true).EnableMouse(true).Run(); err != nil {
+		panic(err)
 	}
 }
