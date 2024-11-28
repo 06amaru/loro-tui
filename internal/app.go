@@ -2,6 +2,7 @@ package internal
 
 import (
 	"loro-tui/internal/models"
+	"loro-tui/internal/style"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -13,6 +14,7 @@ var (
 	chatMesssages *tview.Table
 	Pages         *tview.Pages
 	usernameTV    *tview.TextView
+	buttonNeWChat *tview.Button
 )
 
 type Loro struct {
@@ -41,6 +43,7 @@ func (l *Loro) setMessagesInTable(messages []*models.Message) {
 		row := len(messages) - i - 1
 		msg := messages[i]
 		newCell := tview.NewTableCell(*msg.Body).SetExpansion(1)
+		newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
 		if *msg.Sender == l.username {
 			newCell.SetAlign(tview.AlignRight)
 		}
@@ -51,6 +54,11 @@ func (l *Loro) setMessagesInTable(messages []*models.Message) {
 func createLoginPage(l *Loro) tview.Primitive {
 
 	form := tview.NewForm()
+	form.SetLabelColor(style.LoroTheme.SecondaryTextColor)
+	form.SetFieldBackgroundColor(style.LoroTheme.MoreContrastBackgroundColor)
+	form.SetFieldTextColor(style.LoroTheme.PrimitiveBackgroundColor)
+	form.SetButtonStyle(style.ButtonStyle)
+	form.SetButtonActivatedStyle(style.BtnActivatedStyle)
 	form.AddInputField("Username", "", 20, nil, nil).
 		AddPasswordField("Password", "", 20, '*', nil).
 		AddButton("Login", func() {
@@ -73,7 +81,10 @@ func createLoginPage(l *Loro) tview.Primitive {
 			Pages.SwitchToPage("chat")
 		})
 
-	return form
+	return tview.NewGrid().
+		SetColumns(0, 40, 0).
+		SetRows(0, 9, 0).
+		AddItem(form, 1, 1, 1, 1, 0, 0, true)
 }
 
 func (l *Loro) fetchChats() {
@@ -86,6 +97,7 @@ func (l *Loro) fetchChats() {
 
 	for i, v := range chats {
 		newCell := tview.NewTableCell(v.Username).SetExpansion(1)
+		newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
 		chatList.SetCell(i, 0, newCell)
 	}
 }
@@ -143,6 +155,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 						l.messagesMap[chat.ChatID] = newChatMsg
 					} else {
 						chatMsg.offset++
+						chatMsg.messages = append([]*models.Message{msg.Message}, chatMsg.messages...)
 					}
 				}
 				chatList.Clear()
@@ -150,6 +163,7 @@ func (l *Loro) handleMessageEvents(msg *models.MessageEvent) {
 				for i, chatID := range l.chatList {
 					username := l.chatsMap[chatID].Username
 					newCell := tview.NewTableCell(username).SetExpansion(1)
+					newCell.SetTextColor(style.LoroTheme.SecondaryTextColor)
 					chatList.SetCell(i, 0, newCell)
 					if l.selectedChat != nil && chatID == l.selectedChat.ChatID {
 						chatList.Select(i, 0)
@@ -183,9 +197,12 @@ func (l *Loro) handleChatEvents(event *models.ChatEvent) {
 }
 
 func createChatPage(l *Loro) tview.Primitive {
-	chatList = tview.NewTable().SetBorders(true)
+	chatList = tview.NewTable()
 	chatInput = tview.NewInputField()
-	chatMesssages = tview.NewTable().SetBorders(true)
+	chatInput.SetFieldBackgroundColor(style.LoroTheme.MoreContrastBackgroundColor)
+	chatInput.SetFieldTextColor(style.LoroTheme.PrimitiveBackgroundColor)
+
+	chatMesssages = tview.NewTable()
 	inputs := []tview.Primitive{
 		chatList,
 		chatInput,
@@ -215,6 +232,8 @@ func createChatPage(l *Loro) tview.Primitive {
 		return event
 	})
 
+	chatMesssages.SetBorder(true)
+	chatMesssages.SetBorderColor(style.LoroTheme.MoreContrastBackgroundColor)
 	chatMesssages.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		row, _ := chatMesssages.GetSelection()
 		switch event.Key() {
@@ -231,7 +250,10 @@ func createChatPage(l *Loro) tview.Primitive {
 	})
 
 	l.Application.SetFocus(chatList)
+	chatList.SetBorder(true)
+	chatList.SetBorderColor(style.LoroTheme.MoreContrastBackgroundColor)
 	chatList.SetSelectable(true, true)
+	chatList.SetSelectedStyle(style.CellSelectedtyle)
 	chatList.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
@@ -247,8 +269,13 @@ func createChatPage(l *Loro) tview.Primitive {
 	})
 
 	usernameTV = tview.NewTextView()
+	usernameTV.SetTextColor(style.LoroTheme.SecondaryTextColor)
+
 	mainLayout := tview.NewFlex().SetDirection(tview.FlexRow)
-	buttonNeWChat := tview.NewButton("NEW CHAT")
+
+	buttonNeWChat = tview.NewButton("NEW CHAT")
+	buttonNeWChat.SetStyle(style.ButtonStyle)
+
 	menuTitle := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(usernameTV, 0, 1, false).
 		AddItem(buttonNeWChat, 0, 1, false)
@@ -260,10 +287,12 @@ func createChatPage(l *Loro) tview.Primitive {
 			AddItem(chatMesssages, 0, 1, false).
 			AddItem(chatInput, 1, 1, false),
 			0, 4, false)
+	chatLayout.SetBorder(false)
 
 	mainLayout.
 		AddItem(menuTitle, 0, 1, false).
 		AddItem(chatLayout, 0, 12, false)
+	mainLayout.SetBorder(false)
 
 	return mainLayout
 }
