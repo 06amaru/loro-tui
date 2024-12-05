@@ -238,7 +238,7 @@ func createChatPage(l *Loro) tview.Primitive {
 		row, _ := chatMesssages.GetSelection()
 		switch event.Key() {
 		case tcell.KeyUp:
-			if row == 0 {
+			if row == 0 && l.selectedChat != nil {
 				l.ChatEvents <- &models.ChatEvent{Type: models.GetMessages, ChatID: l.selectedChat.ChatID}
 			}
 			return event
